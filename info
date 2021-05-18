@@ -1,0 +1,11 @@
+{'author': 'Maximilian Hill <mhill@inett.de>',
+ 'description': '',
+ 'download_url': '',
+ 'files': {'agents': ['plugins/smart']},
+ 'name': 'smart+storcli',
+ 'num_files': 1,
+ 'title': 'Smart + Storcli',
+ 'version': '0.1',
+ 'version.min_required': '2.0.0',
+ 'version.packaged': '2.0.0p4',
+ 'version.usable_until': None}
