@@ -33,8 +33,33 @@ megaraid_info()
     echo "$PDINFO" | \
     while read -r line ; do
         case "$line" in
-           # FIRST LINE
-           "Enclosure Device ID"*) #Enclosure Device ID: 252
+        "Adapter #"*)
+            CTRL=$( echo "$line" | sed 's/^\(.*\)\#//' )
+            SG=$($1 -AdpGetPciInfo -a${CTRL} | while read -r p_line ; do
+                case "$p_line" in
+                    *"Controller $CTRL")
+                        continue
+                    ;;
+                    "Bus Number "*)
+                        PCI_BUS=$( echo "$p_line" | cut -d ':' -f 2 | xargs )
+                        PCI_BUS=$( printf %02x $PCI_BUS )
+                    ;;
+                    "Device Number "*)
+                        PCI_DEV=$( echo "$p_line" | cut -d ':' -f 2 | xargs )
+                        PCI_DEV=$( printf %02x $PCI_DEV )
+                    ;;
+                    "Function Number "*)
+                        PCI_FUN=$( echo "$p_line" | cut -d ':' -f 2 | xargs )
+                        PCI_FUN=$( printf %01x $PCI_FUN )
+                        SG_PATH=( "/sys/devices/pci*:00/*:00:${PCI_BUS}.${PCI_FUN}/*:${PCI_BUS}:${PCI_DEV}.${PCI_FUN}/host*/target*/*/scsi_generic/sg*" )
+                        basename $( echo $SG_PATH | cut -d ' ' -f 1 )
+                        exit
+                    ;;
+                esac
+            done)
+        ;;
+        # FIRST LINE
+        "Enclosure Device ID"*) #Enclosure Device ID: 252
             ENC=$( echo "$line" | awk '{print $4}')
                   unset SLOT LOG_DEV_ID VEND MODEL
         ;;
@@ -55,9 +80,9 @@ megaraid_info()
             MODEL=$( echo "$line" | awk '{print $3}')
 
             # /dev/sdc ATA SAMSUNG_SSD_830   5 Reallocated_Sector_Ct   0x0033   100   100   010    Pre-fail  Always       -
-            smartctl -d megaraid,"${LOG_DEV_ID}" -v 9,raw48 -A /dev/sg0 | \
+            smartctl -d megaraid,"${LOG_DEV_ID}" -v 9,raw48 -A /dev/${SG} | \
               grep Always  | grep -E -v '^190(.*)Temperature(.*)'       | \
-              sed "s|^|Enc${ENC}/Slot${SLOT} $VEND $MODEL |"
+              sed "s|^|Con${CTRL}/Enc${ENC}/Slot${SLOT} $VEND $MODEL |"
             ;;
             esac
        done
