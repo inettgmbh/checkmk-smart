@@ -248,25 +248,18 @@ if which smartctl > /dev/null 2>&1 ; then
     # Call storcli if available
     if inpath storcli; then
         storcli_info storcli
-        MegaCli_bin="unknown"
     elif inpath storcli64; then
         storcli_info storcli64
-        MegaCli_bin="unknown"
 
     # Call MegaRaid submodule if conditions are met
-    elif type MegaCli >/dev/null 2>&1; then
-        MegaCli_bin="MegaCli"
-    elif type MegaCli64 >/dev/null 2>&1; then
-        MegaCli_bin="MegaCli64"
-    elif type megacli >/dev/null 2>&1; then
-        MegaCli_bin="megacli"
-    else
-        MegaCli_bin="unknown"
+    elif inpath MegaCli; then
+        megaraid_info MegaCli
+    elif inpath MegaCli64; then
+        megaraid_info MegaCli64
+    elif inpath megacli; then
+        megaraid_info megacli
     fi
 
-    if [ "$MegaCli_bin" != "unknown" ]; then
-        megaraid_info "$MegaCli_bin"
-    fi
 else
     echo "ERROR: smartctl not found" >&2
 fi
