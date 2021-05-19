@@ -69,11 +69,25 @@ storcli_info()
         case "$line" in
             "Controller = "*)
                 CTRL=$( echo "$line" | cut -d ' ' -f 3 )
-            ;;
-            "PCI Address = "*)
-                PCIA=$( echo "$line" | cut -d ' ' -f 4 | (IFS=: read -r _d _c _b _a; echo ${_a}${_b}:$_c:$_d) )
-                SG_PATH=( "/sys/devices/pci*/*/*$PCIA.*/*/*/*/*/sg*" )
-                SG=$( basename $( echo $SG_PATH | cut -d ' ' -f 1 ) )
+                SG=$($1 /c${CTRL} show pci | while read -r p_line ; do
+                    case "$p_line" in
+                        "Bus Number "*)
+                            PCI_BUS=$( echo "$p_line" | xargs | cut -d ' ' -f 3 )
+                            PCI_BUS=$( printf %02x $PCI_BUS )
+                        ;;
+                        "Device Number "*)
+                            PCI_DEV=$( echo "$p_line" | xargs | cut -d ' ' -f 3 )
+                            PCI_DEV=$( printf %02x $PCI_DEV )
+                        ;;
+                        "Function Number "*)
+                            PCI_FUN=$( echo "$p_line" | xargs | cut -d ' ' -f 3 )
+                            PCI_FUN=$( printf %01x $PCI_FUN )
+                            SG_PATH=( "/sys/devices/pci*:00/*:00:${PCI_BUS}.${PCI_FUN}/*:${PCI_BUS}:${PCI_DEV}.${PCI_FUN}/host*/target*/*/scsi_generic/sg*" )
+                            basename $( echo $SG_PATH | cut -d ' ' -f 1 )
+                            exit
+                        ;;
+                    esac
+                done)
             ;;
             "EID:Slt "*)
                 read -r line;
@@ -91,7 +105,7 @@ storcli_info()
                             VEND=$( echo "$line" | awk '{print $7}' )
                             smartctl -d "megaraid,${DID}" -v 9,raw48 -A /dev/${SG}     | \
                               grep Always  | grep -E -v '^190(.*)Temperature(.*)' | \
-                              sed "s|^|Contr${CTRL}/Enc${EID}/Slot${Slt} $VEND $MODEL |"
+                              sed "s|^|Con${CTRL}/Enc${EID}/Slot${Slt} $VEND $MODEL |"
                         ;;
                     esac
                 done
@@ -206,6 +220,7 @@ if which smartctl > /dev/null 2>&1 ; then
             fi
     done 2>/dev/null
 
+    # Call storcli if available
     if inpath storcli; then
         storcli_info storcli
         MegaCli_bin="unknown"
