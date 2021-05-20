@@ -51,7 +51,7 @@ megaraid_info()
                     "Function Number "*)
                         PCI_FUN=$( echo "$p_line" | cut -d ':' -f 2 | xargs )
                         PCI_FUN=$( printf %01x $PCI_FUN )
-                        SG_PATH=( "/sys/devices/pci*:00/*:00:${PCI_BUS}.${PCI_FUN}/*:${PCI_BUS}:${PCI_DEV}.${PCI_FUN}/host*/target*/*/scsi_generic/sg*" )
+                        SG_PATH=( "/sys/bus/pci/devices/*:${PCI_BUS}:${PCI_DEV}.${PCI_FUN}/host*/target*/*/scsi_generic/sg*" )
                         basename $( echo $SG_PATH | cut -d ' ' -f 1 )
                         exit
                     ;;
@@ -107,7 +107,7 @@ storcli_info()
                         "Function Number "*)
                             PCI_FUN=$( echo "$p_line" | xargs | cut -d ' ' -f 3 )
                             PCI_FUN=$( printf %01x $PCI_FUN )
-                            SG_PATH=( "/sys/devices/pci*:00/*:00:${PCI_BUS}.${PCI_FUN}/*:${PCI_BUS}:${PCI_DEV}.${PCI_FUN}/host*/target*/*/scsi_generic/sg*" )
+                            SG_PATH=( "/sys/bus/pci/devices/*:${PCI_BUS}:${PCI_DEV}.${PCI_FUN}/host*/target*/*/scsi_generic/sg*" )
                             basename $( echo $SG_PATH | cut -d ' ' -f 1 )
                             exit
                         ;;
