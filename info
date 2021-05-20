@@ -1,5 +1,5 @@
 {'author': 'Maximilian Hill <mhill@inett.de>',
- 'description': 'Smart Plugin with storcli support',
+ 'description': 'Smart Agent Plugin extended to support storcli and mutiple controllers. Also works, if /dev/sg0 is not a scsi controller.',
  'download_url': 'https://github.com/inettgmbh/checkmk-smart',
  'files': {'agents': ['plugins/smart']},
  'name': 'smart_patch',
