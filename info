@@ -1,11 +1,13 @@
 {'author': 'Maximilian Hill <mhill@inett.de>',
- 'description': 'Smart Agent Plugin extended to support storcli and mutiple controllers. Also works, if /dev/sg0 is not a scsi controller.',
+ 'description': 'Smart Agent Plugin extended to support storcli and mutiple '
+                'controllers. Also works, if /dev/sg0 is not a scsi '
+                'controller.',
  'download_url': 'https://github.com/inettgmbh/checkmk-smart',
  'files': {'agents': ['plugins/smart']},
  'name': 'smart_patch',
  'num_files': 1,
  'title': 'Extended Smart',
- 'version': '1.1.1',
+ 'version': '1.1.11',
  'version.min_required': '2.0.0',
  'version.packaged': '2.0.0p4',
  'version.usable_until': None}
