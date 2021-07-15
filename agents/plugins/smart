@@ -94,21 +94,42 @@ storcli_info()
         case "$line" in
             "Controller = "*)
                 CTRL=$( echo "$line" | cut -d ' ' -f 3 )
-                SG=$($1 /c${CTRL} show pci | while read -r p_line ; do
+                SG=$(while read -r p_line ; do
                     case "$p_line" in
                         "Bus Number "*)
-                            PCI_BUS=$( echo "$p_line" | xargs | cut -d ' ' -f 3 )
+                            PCI_BUS=$( echo "$p_line" | cut -d ' ' -f 4 )
                             PCI_BUS=$( printf %02x $PCI_BUS )
                         ;;
                         "Device Number "*)
-                            PCI_DEV=$( echo "$p_line" | xargs | cut -d ' ' -f 3 )
+                            PCI_DEV=$( echo "$p_line" | cut -d ' ' -f 4 )
                             PCI_DEV=$( printf %02x $PCI_DEV )
                         ;;
                         "Function Number "*)
-                            PCI_FUN=$( echo "$p_line" | xargs | cut -d ' ' -f 3 )
+                            PCI_FUN=$( echo "$p_line" | cut -d ' ' -f 4 )
                             PCI_FUN=$( printf %01x $PCI_FUN )
-                            SG_PATH=( "/sys/bus/pci/devices/*:${PCI_BUS}:${PCI_DEV}.${PCI_FUN}/host*/target*/*/scsi_generic/sg*" )
-                            basename $( echo $SG_PATH | cut -d ' ' -f 1 )
+                            SG_PATH=( "/sys/bus/pci/devices/*:${PCI_BUS}:${PCI_DEV}.${PCI_FUN}/host*/port-*/expander-*/port-*/end_device-*/target*/*/scsi_generic/sg*" )
+                            SG_NAME=$(basename $( echo $SG_PATH | cut -d ' ' -f 1 ))
+                            if [[ "${SG_NAME#}" =~ \*$ ]]; then
+                                SG_PATH=( "/sys/bus/pci/devices/*:${PCI_BUS}:${PCI_DEV}.${PCI_FUN}/host*/target*/*/scsi_generic/sg*" )
+                                SG_NAME=$(basename $( echo $SG_PATH | cut -d ' ' -f 1 ))
+                            fi
+                            echo $SG_NAME
+                            exit
+                        ;;
+                    esac
+                done)
+                PERS=$(while read -r p_line ; do
+                    case "$p_line" in
+                        "Current Personality "*)
+                            echo "$p_line" | cut -d ' ' -f  4
+                            exit
+                        ;;
+                        "PD List "*)
+                            echo unknown
+                            exit
+                        ;;
+                        "Drive "*)
+                            echo unknown
                             exit
                         ;;
                     esac
@@ -116,21 +137,58 @@ storcli_info()
             ;;
             "EID:Slt "*)
                 read -r line;
+                _WWN_HIT=False
+                if [ "${PERS}" != "RAID-Mode" ]; then
+                    read -r line;
+                    EID_Slt=$( echo "$line" | awk '{print $1}' )
+                    EID=$( echo "$EID_Slt" | cut -d ':' -f 1 )
+                    Slt=$( echo "$EID_Slt" | cut -d ':' -f 2 )
+                    DID=$( echo "$line" | awk '{print $2}' )
+                    MODEL=$( echo "$line" | awk '{print $12}' )
+                    if [[ "$MODEL" =~ TOSHIBA|INTEL ]]; then
+                        MODEL="${MODEL}_$( echo $line | awk '{print $13}' )"
+                    fi
+                    VEND=$( echo "$line" | awk '{print $7}' )
+                fi
                 while read -r line; do
                     case "$line" in
                         "---"*)
-                            break
+                            if [ "${PERS}" == "RAID-Mode" ]; then
+                                break
+                            fi
+                        ;;
+                        "WWN "*)
+                            if [ "${PERS}" != "RAID-Mode" ]; then
+                                WWN=$( echo "$line" | awk '{print tolower($3)}' )
+                                smartctl -v 9,raw48 -A /dev/disk/by-id/wwn-0x${WWN}     | \
+                                  grep Always  | grep -E -v '^190(.*)Temperature(.*)' | \
+                                  sed "s|^|Con${CTRL}/Enc${EID}/Slot${Slt} $VEND $MODEL |"
+                                _WWN_HIT=True
+                                continue
+                            fi
+                        ;;
+                        "==="*)
+                            if [ "${PERS}" != "RAID-Mode" ] && [ "${_WWN_HIT}" == "True" ]; then
+                                _WWN_HIT=False
+                                break
+                            fi
                         ;;
                         *)
-                            EID_Slt=$( echo "$line" | awk '{print $1}' )
-                            EID=$( echo "$EID_Slt" | cut -d ':' -f 1 )
-                            Slt=$( echo "$EID_Slt" | cut -d ':' -f 2 )
-                            DID=$( echo "$line" | awk '{print $2}' )
-                            MODEL=$( echo "$line" | awk '{print $12}' )
-                            VEND=$( echo "$line" | awk '{print $7}' )
-                            smartctl -d "megaraid,${DID}" -v 9,raw48 -A /dev/${SG}     | \
-                              grep Always  | grep -E -v '^190(.*)Temperature(.*)' | \
-                              sed "s|^|Con${CTRL}/Enc${EID}/Slot${Slt} $VEND $MODEL |"
+                            if [ "${PERS}" == "RAID-Mode" ]; then
+                                EID_Slt=$( echo "$line" | awk '{print $1}' )
+                                EID=$( echo "$EID_Slt" | cut -d ':' -f 1 )
+                                Slt=$( echo "$EID_Slt" | cut -d ':' -f 2 )
+                                DID=$( echo "$line" | awk '{print $2}' )
+                                MODEL=$( echo "$line" | awk '{print $12}' )
+                                if [[ "$MODEL" =~ TOSHIBA|INTEL ]]; then
+                                    MODEL="${MODEL}_$( echo $line | awk '{print $13}' )"
+                                fi
+                                VEND=$( echo "$line" | awk '{print $7}' )
+                                smartctl -d "megaraid,${DID}" -v 9,raw48 -A /dev/${SG}     | \
+                                  grep Always  | grep -E -v '^190(.*)Temperature(.*)' | \
+                                  sed "s|^|Con${CTRL}/Enc${EID}/Slot${Slt} $VEND $MODEL |"
+#                                read -r line
+                            fi
                         ;;
                     esac
                 done
